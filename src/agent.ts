@@ -55,9 +55,13 @@ Acoes disponiveis:
 
 5. Colocar edificio:
    {"tipo": "place", "prefab": "nome_do_prefab", "x": 100, "z": 100}
-   Prefabs: coal_power_plant, wind_turbine, water_pump, water_drain,
-   police_station, fire_station, hospital, elementary_school, high_school,
-   landfill, cemetery
+   Prefabs disponiveis:
+   - Energia: coal_power_plant, wind_turbine, solar_power_plant, oil_power_plant, nuclear_power_plant
+   - Agua: water_pump (captacao), water_drain (despejo), water_tower, water_treatment
+   - Saude: medical_clinic, hospital, crematory, cemetery
+   - Seguranca: police_station, police_headquarters, fire_station, fire_house
+   - Educacao: elementary_school, high_school, university
+   - Lixo: landfill
 
 6. Mudar velocidade:
    {"tipo": "speed", "speed": 1|2|3}

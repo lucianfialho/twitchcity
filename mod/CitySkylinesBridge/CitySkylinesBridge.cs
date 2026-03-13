@@ -153,6 +153,9 @@ namespace CitySkylinesBridge
                 case "/api/prefabs":
                     return ExecuteOnMainThread(() => ListBuildingPrefabs());
 
+                case "/api/nets":
+                    return ExecuteOnMainThread(() => ListNetPrefabs());
+
                 default:
                     return "{\"error\":\"not_found\"}";
             }
@@ -317,6 +320,8 @@ namespace CitySkylinesBridge
                     break;
                 case "powerline":
                     prefab = PrefabCollection<NetInfo>.FindLoaded("Electricity Wire");
+                    if (prefab == null) prefab = PrefabCollection<NetInfo>.FindLoaded("Powerline");
+                    if (prefab == null) prefab = PrefabCollection<NetInfo>.FindLoaded("Power Line");
                     break;
                 case "water_pipe":
                     prefab = PrefabCollection<NetInfo>.FindLoaded("Water Pipe");
@@ -361,8 +366,12 @@ namespace CitySkylinesBridge
             {
                 { "coal_power_plant", "Coal Power Plant" },
                 { "wind_turbine", "Wind Turbine" },
-                { "water_pump", "Water Pumping Station" },
-                { "water_drain", "Water Drain Pipe" },
+                { "water_pump", "Water Intake" },
+                { "water_intake", "Water Intake" },
+                { "water_drain", "Water Outlet" },
+                { "water_outlet", "Water Outlet" },
+                { "water_tower", "Water Tower" },
+                { "water_treatment", "Water Treatment Plant" },
                 { "police_station", "Police Station" },
                 { "fire_station", "Fire Station" },
                 { "hospital", "Hospital" },
@@ -370,6 +379,14 @@ namespace CitySkylinesBridge
                 { "high_school", "High School" },
                 { "landfill", "Landfill Site" },
                 { "cemetery", "Cemetery" },
+                { "crematory", "Crematory" },
+                { "nuclear_power_plant", "Nuclear Power Plant" },
+                { "solar_power_plant", "Solar Power Plant" },
+                { "oil_power_plant", "Oil Power Plant" },
+                { "medical_clinic", "Medical Clinic" },
+                { "university", "University" },
+                { "police_headquarters", "Police Headquarters" },
+                { "fire_house", "Fire House" },
             };
 
             string actualName = prefabMap.ContainsKey(prefabName) ? prefabMap[prefabName] : prefabName;
@@ -429,6 +446,31 @@ namespace CitySkylinesBridge
                 {
                     if (!first) sb.Append(",");
                     sb.Append($"{{\"name\":\"{EscapeJson(info.name)}\",\"service\":\"{service}\"}}");
+                    first = false;
+                }
+            }
+            sb.Append("]}");
+            return sb.ToString();
+        }
+
+        private string ListNetPrefabs()
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append("{\"nets\":[");
+            int count = PrefabCollection<NetInfo>.LoadedCount();
+            bool first = true;
+            for (uint i = 0; i < count; i++)
+            {
+                var info = PrefabCollection<NetInfo>.GetLoaded(i);
+                if (info == null) continue;
+                var cat = info.category ?? "";
+                // Only list roads, pipes, power lines
+                if (cat.Contains("Road") || cat.Contains("Electricity") || cat.Contains("Water") ||
+                    info.name.Contains("Road") || info.name.Contains("Pipe") || info.name.Contains("Power") ||
+                    info.name.Contains("Wire") || info.name.Contains("Highway"))
+                {
+                    if (!first) sb.Append(",");
+                    sb.Append($"{{\"name\":\"{EscapeJson(info.name)}\",\"category\":\"{EscapeJson(cat)}\"}}");
                     first = false;
                 }
             }
