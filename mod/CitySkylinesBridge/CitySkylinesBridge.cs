@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using ColossalFramework;
@@ -187,19 +188,15 @@ namespace CitySkylinesBridge
 
             var em = Singleton<EconomyManager>.instance;
 
-            int population = (int)district.m_populationData.m_finalCount;
             long money = em.LastCashAmount;
             int happiness = (int)district.m_finalHappiness;
 
-            // Electricity - use ElectricityManager directly
-            var elecMgr = Singleton<ElectricityManager>.instance;
-            int elecCapacity = elecMgr.m_electricityCapacity;
-            int elecConsumption = elecMgr.m_electricityConsumption;
-
-            // Water - use WaterManager directly
-            var waterMgr = Singleton<WaterManager>.instance;
-            int waterCapacity = waterMgr.m_waterCapacity;
-            int waterConsumption = waterMgr.m_waterConsumption;
+            // Use District methods that exist in the actual game API
+            int population = ReadUIntField(district.m_populationData, "m_finalCount");
+            int elecCapacity = (int)district.GetElectricityCapacity();
+            int elecConsumption = (int)district.GetElectricityConsumption();
+            int waterCapacity = (int)district.GetWaterCapacity();
+            int waterConsumption = (int)district.GetWaterConsumption();
 
             // Demand
             var zm = Singleton<ZoneManager>.instance;
@@ -223,11 +220,16 @@ namespace CitySkylinesBridge
             var dm = Singleton<DistrictManager>.instance;
             var d = dm.m_districts.m_buffer[0];
 
+            int res = ReadUIntField(d.m_residentialData, "m_finalHomeOrWorkCount", "m_finalCount");
+            int com = ReadUIntField(d.m_commercialData, "m_finalHomeOrWorkCount", "m_finalCount");
+            int ind = ReadUIntField(d.m_industrialData, "m_finalHomeOrWorkCount", "m_finalCount");
+            int off = ReadUIntField(d.m_officeData, "m_finalHomeOrWorkCount", "m_finalCount");
+
             return $@"{{
-                ""residential"": {d.m_residentialData.m_finalHomeOrWorkCount},
-                ""commercial"": {d.m_commercialData.m_finalHomeOrWorkCount},
-                ""industrial"": {d.m_industrialData.m_finalHomeOrWorkCount},
-                ""office"": {d.m_officeData.m_finalHomeOrWorkCount}
+                ""residential"": {res},
+                ""commercial"": {com},
+                ""industrial"": {ind},
+                ""office"": {off}
             }}";
         }
 
@@ -397,6 +399,35 @@ namespace CitySkylinesBridge
             sm.SelectedSimulationSpeed = Math.Max(1, Math.Min(3, speed));
 
             return $"{{\"success\":true,\"speed\":{speed}}}";
+        }
+
+        /// <summary>
+        /// Safely read a uint field by name via reflection. Tries multiple field names.
+        /// Returns 0 if none found.
+        /// </summary>
+        private static int ReadUIntField(object obj, params string[] fieldNames)
+        {
+            if (obj == null) return 0;
+            var type = obj.GetType();
+
+            foreach (var name in fieldNames)
+            {
+                var field = type.GetField(name);
+                if (field != null)
+                {
+                    try
+                    {
+                        var val = field.GetValue(obj);
+                        if (val is uint u) return (int)u;
+                        if (val is int i) return i;
+                        if (val is long l) return (int)l;
+                        return Convert.ToInt32(val);
+                    }
+                    catch { }
+                }
+            }
+
+            return 0;
         }
 
         private static string EscapeJson(string s)
