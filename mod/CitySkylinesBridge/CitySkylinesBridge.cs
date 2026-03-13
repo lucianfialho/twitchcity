@@ -191,15 +191,15 @@ namespace CitySkylinesBridge
             long money = em.LastCashAmount;
             int happiness = (int)district.m_finalHappiness;
 
-            // Electricity
-            var eManager = Singleton<ElectricityManager>.instance;
-            int elecCapacity = 0, elecConsumption = 0;
-            // Approximate from district data
-            elecCapacity = district.m_productionData.m_finalCount; // simplified
-            elecConsumption = district.m_playerConsumption.m_finalCount;
+            // Electricity - use ElectricityManager directly
+            var elecMgr = Singleton<ElectricityManager>.instance;
+            int elecCapacity = elecMgr.m_electricityCapacity;
+            int elecConsumption = elecMgr.m_electricityConsumption;
 
-            // Water
-            int waterCapacity = 0, waterConsumption = 0;
+            // Water - use WaterManager directly
+            var waterMgr = Singleton<WaterManager>.instance;
+            int waterCapacity = waterMgr.m_waterCapacity;
+            int waterConsumption = waterMgr.m_waterConsumption;
 
             // Demand
             var zm = Singleton<ZoneManager>.instance;
@@ -224,10 +224,10 @@ namespace CitySkylinesBridge
             var d = dm.m_districts.m_buffer[0];
 
             return $@"{{
-                ""residential"": {d.m_residentialData.m_finalCount},
-                ""commercial"": {d.m_commercialData.m_finalCount},
-                ""industrial"": {d.m_industrialData.m_finalCount},
-                ""office"": {d.m_officeData.m_finalCount}
+                ""residential"": {d.m_residentialData.m_finalHomeOrWorkCount},
+                ""commercial"": {d.m_commercialData.m_finalHomeOrWorkCount},
+                ""industrial"": {d.m_industrialData.m_finalHomeOrWorkCount},
+                ""office"": {d.m_officeData.m_finalHomeOrWorkCount}
             }}";
         }
 
