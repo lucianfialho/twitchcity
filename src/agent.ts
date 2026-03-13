@@ -13,11 +13,19 @@ import {
   type CityStats,
 } from "./cities-client";
 
-const ollama = new Ollama({
-  host: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
-});
+let _ollama: Ollama | null = null;
+function getOllama() {
+  if (!_ollama) {
+    _ollama = new Ollama({
+      host: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
+    });
+  }
+  return _ollama;
+}
 
-const MODEL = process.env.OLLAMA_MODEL || "llama3.1";
+function getModel() {
+  return process.env.OLLAMA_MODEL || "llama3.1";
+}
 
 const SYSTEM_PROMPT = `Voce e o Onoma, um prefeito AI jogando Cities: Skylines numa live da Twitch.
 Voce gerencia a cidade e explica suas decisoes pro chat.
@@ -150,8 +158,8 @@ export async function think(stats: CityStats): Promise<AgentResult> {
     },
   ];
 
-  const response = await ollama.chat({
-    model: MODEL,
+  const response = await getOllama().chat({
+    model: getModel(),
     messages,
     format: "json",
     options: {

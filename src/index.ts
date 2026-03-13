@@ -48,8 +48,13 @@ async function waitForConnection() {
       await ping();
       console.log("✅ Conectado ao Cities: Skylines!\n");
       return;
-    } catch {
-      process.stdout.write(".");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!msg.includes("ECONNREFUSED") && !msg.includes("fetch failed")) {
+        console.log(`\n⚠️  Erro: ${msg}`);
+      } else {
+        process.stdout.write(".");
+      }
       await new Promise((r) => setTimeout(r, 3000));
     }
   }

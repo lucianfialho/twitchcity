@@ -3,15 +3,16 @@
  * O mod expoe endpoints REST no Windows.
  */
 
-const BRIDGE_URL =
-  process.env.CITIES_BRIDGE_URL || "http://localhost:8080";
+function getBridgeUrl() {
+  return process.env.CITIES_BRIDGE_URL || "http://localhost:8080";
+}
 
 async function request(
   method: string,
   path: string,
   body?: Record<string, unknown>
 ) {
-  const res = await fetch(`${BRIDGE_URL}${path}`, {
+  const res = await fetch(`${getBridgeUrl()}${path}`, {
     method,
     headers: { "Content-Type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
@@ -101,7 +102,7 @@ export async function ping(): Promise<{ ok: boolean }> {
 }
 
 export async function screenshot(): Promise<string> {
-  const res = await fetch(`${BRIDGE_URL}/api/screenshot`);
+  const res = await fetch(`${getBridgeUrl()}/api/screenshot`);
   if (!res.ok) throw new Error("Failed to get screenshot");
   const buffer = await res.arrayBuffer();
   return `data:image/png;base64,${Buffer.from(buffer).toString("base64")}`;

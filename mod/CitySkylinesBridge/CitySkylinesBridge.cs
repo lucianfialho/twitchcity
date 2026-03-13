@@ -236,11 +236,14 @@ namespace CitySkylinesBridge
         private string HandleZone(string body)
         {
             var data = SimpleJson.Parse(body);
-            string zoneType = data["zone_type"] ?? data["type"] ?? "residential";
-            float x = float.Parse(data["x"] ?? "0");
-            float z = float.Parse(data["z"] ?? "0");
-            int width = int.Parse(data["width"] ?? "4");
-            int depth = int.Parse(data["depth"] ?? "4");
+            Debug.Log($"[TwitchCity] Zone request: {body} -> parsed keys: {string.Join(", ", data.Keys)}");
+            string zoneType = "residential";
+            if (data.ContainsKey("zone_type")) zoneType = data["zone_type"];
+            else if (data.ContainsKey("type")) zoneType = data["type"];
+            float x = float.Parse(data.ContainsKey("x") ? data["x"] : "0");
+            float z = float.Parse(data.ContainsKey("z") ? data["z"] : "0");
+            int width = int.Parse(data.ContainsKey("width") ? data["width"] : "4");
+            int depth = int.Parse(data.ContainsKey("depth") ? data["depth"] : "4");
 
             ItemClass.Zone zone;
             switch (zoneType)
@@ -283,11 +286,14 @@ namespace CitySkylinesBridge
         private string HandleBuild(string body)
         {
             var data = SimpleJson.Parse(body);
-            string buildType = data["build_type"] ?? data["type"] ?? "road";
-            float sx = float.Parse(data["startX"] ?? "0");
-            float sz = float.Parse(data["startZ"] ?? "0");
-            float ex = float.Parse(data["endX"] ?? "0");
-            float ez = float.Parse(data["endZ"] ?? "0");
+            Debug.Log($"[TwitchCity] Build request: {body} -> parsed keys: {string.Join(", ", data.Keys)}");
+            string buildType = "road";
+            if (data.ContainsKey("build_type")) buildType = data["build_type"];
+            else if (data.ContainsKey("type")) buildType = data["type"];
+            float sx = float.Parse(data.ContainsKey("startX") ? data["startX"] : "0");
+            float sz = float.Parse(data.ContainsKey("startZ") ? data["startZ"] : "0");
+            float ex = float.Parse(data.ContainsKey("endX") ? data["endX"] : "0");
+            float ez = float.Parse(data.ContainsKey("endZ") ? data["endZ"] : "0");
 
             var startPos = new Vector3(sx, 0, sz);
             var endPos = new Vector3(ex, 0, ez);
@@ -343,9 +349,9 @@ namespace CitySkylinesBridge
         private string HandlePlace(string body)
         {
             var data = SimpleJson.Parse(body);
-            string prefabName = data["prefab"] ?? "";
-            float x = float.Parse(data["x"] ?? "0");
-            float z = float.Parse(data["z"] ?? "0");
+            string prefabName = data.ContainsKey("prefab") ? data["prefab"] : "";
+            float x = float.Parse(data.ContainsKey("x") ? data["x"] : "0");
+            float z = float.Parse(data.ContainsKey("z") ? data["z"] : "0");
 
             // Map friendly names to actual prefab names
             var prefabMap = new Dictionary<string, string>
@@ -393,7 +399,7 @@ namespace CitySkylinesBridge
         private string HandleSpeed(string body)
         {
             var data = SimpleJson.Parse(body);
-            int speed = int.Parse(data["speed"] ?? "1");
+            int speed = int.Parse(data.ContainsKey("speed") ? data["speed"] : "1");
 
             var sm = Singleton<SimulationManager>.instance;
             sm.SelectedSimulationSpeed = Math.Max(1, Math.Min(3, speed));
@@ -437,7 +443,8 @@ namespace CitySkylinesBridge
     }
 
     /// <summary>
-    /// Minimal JSON parser (no external dependencies)
+    /// Minimal JSON parser for flat objects (no external dependencies).
+    /// Handles both quoted strings and unquoted numbers/booleans.
     /// </summary>
     public static class SimpleJson
     {
@@ -446,47 +453,60 @@ namespace CitySkylinesBridge
             var result = new Dictionary<string, string>();
             if (string.IsNullOrEmpty(json)) return result;
 
-            // Very basic key-value extraction for flat JSON
-            json = json.Trim().TrimStart('{').TrimEnd('}');
-            var pairs = SplitPairs(json);
+            json = json.Trim();
+            if (json.StartsWith("{")) json = json.Substring(1);
+            if (json.EndsWith("}")) json = json.Substring(0, json.Length - 1);
 
-            foreach (var pair in pairs)
+            int i = 0;
+            while (i < json.Length)
             {
-                var colonIdx = pair.IndexOf(':');
-                if (colonIdx < 0) continue;
+                // Skip whitespace and commas
+                while (i < json.Length && (json[i] == ' ' || json[i] == ',' || json[i] == '\n' || json[i] == '\r' || json[i] == '\t'))
+                    i++;
+                if (i >= json.Length) break;
 
-                var key = pair.Substring(0, colonIdx).Trim().Trim('"');
-                var value = pair.Substring(colonIdx + 1).Trim().Trim('"');
-                result[key] = value;
+                // Read key
+                string key = ReadValue(json, ref i);
+                if (key == null) break;
+
+                // Skip colon
+                while (i < json.Length && (json[i] == ' ' || json[i] == ':'))
+                    i++;
+                if (i >= json.Length) break;
+
+                // Read value
+                string value = ReadValue(json, ref i);
+                if (value != null)
+                    result[key] = value;
             }
 
             return result;
         }
 
-        private static List<string> SplitPairs(string json)
+        private static string ReadValue(string json, ref int i)
         {
-            var result = new List<string>();
-            int depth = 0;
-            int start = 0;
-            bool inString = false;
+            while (i < json.Length && json[i] == ' ') i++;
+            if (i >= json.Length) return null;
 
-            for (int i = 0; i < json.Length; i++)
+            // Quoted string
+            if (json[i] == '"')
             {
-                char c = json[i];
-                if (c == '"' && (i == 0 || json[i - 1] != '\\')) inString = !inString;
-                if (inString) continue;
-                if (c == '{' || c == '[') depth++;
-                if (c == '}' || c == ']') depth--;
-                if (c == ',' && depth == 0)
-                {
-                    result.Add(json.Substring(start, i - start));
-                    start = i + 1;
-                }
+                i++; // skip opening quote
+                int start = i;
+                while (i < json.Length && !(json[i] == '"' && json[i - 1] != '\\'))
+                    i++;
+                string val = json.Substring(start, i - start);
+                if (i < json.Length) i++; // skip closing quote
+                return val;
             }
-            if (start < json.Length)
-                result.Add(json.Substring(start));
 
-            return result;
+            // Unquoted value (number, boolean, null)
+            {
+                int start = i;
+                while (i < json.Length && json[i] != ',' && json[i] != '}' && json[i] != ' ' && json[i] != '\n')
+                    i++;
+                return json.Substring(start, i - start).Trim();
+            }
         }
     }
 }
