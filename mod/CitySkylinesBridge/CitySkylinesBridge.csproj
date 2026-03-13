@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net35</TargetFramework>
+    <AssemblyName>CitySkylinesBridge</AssemblyName>
+    <OutputPath>bin\Release\</OutputPath>
+    <LangVersion>7.3</LangVersion>
+  </PropertyGroup>
+
+  <!--
+    Ajuste os paths abaixo pro seu Cities: Skylines.
+    Normalmente: C:\Program Files (x86)\Steam\steamapps\common\Cities_Skylines\Cities_Data\Managed
+  -->
+  <PropertyGroup>
+    <CitiesManaged>C:\Program Files (x86)\Steam\steamapps\common\Cities_Skylines\Cities_Data\Managed</CitiesManaged>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(CitiesManaged)\Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="ColossalManaged">
+      <HintPath>$(CitiesManaged)\ColossalManaged.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="ICities">
+      <HintPath>$(CitiesManaged)\ICities.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(CitiesManaged)\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>
