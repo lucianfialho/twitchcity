@@ -156,6 +156,9 @@ namespace CitySkylinesBridge
                 case "/api/nets":
                     return ExecuteOnMainThread(() => ListNetPrefabs());
 
+                case "/api/map":
+                    return ExecuteOnMainThread(() => GetMapInfo());
+
                 default:
                     return "{\"error\":\"not_found\"}";
             }
@@ -447,6 +450,63 @@ namespace CitySkylinesBridge
                     if (!first) sb.Append(",");
                     sb.Append($"{{\"name\":\"{EscapeJson(info.name)}\",\"service\":\"{service}\"}}");
                     first = false;
+                }
+            }
+            sb.Append("]}");
+            return sb.ToString();
+        }
+
+        private string GetMapInfo()
+        {
+            var nm = Singleton<NetManager>.instance;
+            var sb = new System.Text.StringBuilder();
+
+            // Find highway/road entry points (nodes connected to outside)
+            sb.Append("{\"roads\":[");
+            bool firstRoad = true;
+            for (ushort i = 1; i < nm.m_nodes.m_buffer.Length; i++)
+            {
+                var node = nm.m_nodes.m_buffer[i];
+                if (node.m_flags == 0) continue;
+                if (node.Info == null) continue;
+
+                // Look for nodes that are road-like and exist
+                bool isRoad = node.Info.m_class != null &&
+                    (node.Info.m_class.m_service == ItemClass.Service.Road ||
+                     node.Info.name.Contains("Highway") || node.Info.name.Contains("Road"));
+
+                if (isRoad)
+                {
+                    if (!firstRoad) sb.Append(",");
+                    sb.Append($"{{\"id\":{i},\"x\":{node.m_position.x:F0},\"z\":{node.m_position.z:F0},\"name\":\"{EscapeJson(node.Info.name)}\"}}");
+                    firstRoad = false;
+
+                    // Limit to first 20 road nodes to keep response small
+                    if (sb.Length > 3000) break;
+                }
+            }
+            sb.Append("],");
+
+            // Find water sources by checking terrain for water level
+            sb.Append("\"waterPoints\":[");
+            var tm = Singleton<TerrainManager>.instance;
+            bool firstWater = true;
+            // Sample a grid to find water
+            for (int gx = -8; gx <= 8; gx += 2)
+            {
+                for (int gz = -8; gz <= 8; gz += 2)
+                {
+                    float wx = gx * 120f;
+                    float wz = gz * 120f;
+                    var pos = new Vector3(wx, 0, wz);
+                    float terrain = tm.SampleRawHeightSmooth(pos);
+                    float water = tm.WaterLevel(new Vector2(wx, wz));
+                    if (water > terrain + 1f)
+                    {
+                        if (!firstWater) sb.Append(",");
+                        sb.Append($"{{\"x\":{wx:F0},\"z\":{wz:F0},\"waterLevel\":{water:F0},\"terrainHeight\":{terrain:F0}}}");
+                        firstWater = false;
+                    }
                 }
             }
             sb.Append("]}");

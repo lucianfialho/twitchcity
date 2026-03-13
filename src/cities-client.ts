@@ -97,6 +97,13 @@ export async function setSpeed(speed: 1 | 2 | 3) {
 
 // --- Utility ---
 
+export async function getMapInfo(): Promise<{
+  roads: Array<{ id: number; x: number; z: number; name: string }>;
+  waterPoints: Array<{ x: number; z: number; waterLevel: number; terrainHeight: number }>;
+}> {
+  return request("GET", "/api/map");
+}
+
 export async function ping(): Promise<{ ok: boolean }> {
   return request("GET", "/api/ping");
 }
