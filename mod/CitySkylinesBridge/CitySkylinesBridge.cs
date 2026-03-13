@@ -150,6 +150,9 @@ namespace CitySkylinesBridge
                 case "/api/speed" when method == "POST":
                     return ExecuteOnMainThread(() => HandleSpeed(body));
 
+                case "/api/prefabs":
+                    return ExecuteOnMainThread(() => ListBuildingPrefabs());
+
                 default:
                     return "{\"error\":\"not_found\"}";
             }
@@ -372,6 +375,23 @@ namespace CitySkylinesBridge
             string actualName = prefabMap.ContainsKey(prefabName) ? prefabMap[prefabName] : prefabName;
             var buildingInfo = PrefabCollection<BuildingInfo>.FindLoaded(actualName);
 
+            // Fallback: try fuzzy match by iterating all prefabs
+            if (buildingInfo == null)
+            {
+                string lower = actualName.ToLower();
+                int count = PrefabCollection<BuildingInfo>.LoadedCount();
+                for (uint i = 0; i < count; i++)
+                {
+                    var info = PrefabCollection<BuildingInfo>.GetLoaded(i);
+                    if (info != null && info.name.ToLower().Contains(lower))
+                    {
+                        buildingInfo = info;
+                        Debug.Log($"[TwitchCity] Fuzzy matched '{prefabName}' -> '{info.name}'");
+                        break;
+                    }
+                }
+            }
+
             if (buildingInfo == null)
                 return $"{{\"error\":\"prefab_not_found\",\"prefab\":\"{EscapeJson(prefabName)}\"}}";
 
@@ -388,6 +408,32 @@ namespace CitySkylinesBridge
             }
 
             return $"{{\"success\":false,\"prefab\":\"{EscapeJson(prefabName)}\",\"error\":\"creation_failed\"}}";
+        }
+
+        private string ListBuildingPrefabs()
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append("{\"prefabs\":[");
+            int count = PrefabCollection<BuildingInfo>.LoadedCount();
+            bool first = true;
+            for (uint i = 0; i < count; i++)
+            {
+                var info = PrefabCollection<BuildingInfo>.GetLoaded(i);
+                if (info == null) continue;
+                var service = info.GetService().ToString();
+                // Only list useful service buildings
+                if (service == "Electricity" || service == "Water" ||
+                    service == "HealthCare" || service == "FireDepartment" ||
+                    service == "PoliceDepartment" || service == "Education" ||
+                    service == "Garbage" || service == "Monument")
+                {
+                    if (!first) sb.Append(",");
+                    sb.Append($"{{\"name\":\"{EscapeJson(info.name)}\",\"service\":\"{service}\"}}");
+                    first = false;
+                }
+            }
+            sb.Append("]}");
+            return sb.ToString();
         }
 
         private string HandleBudget(string body)

@@ -1,6 +1,7 @@
 /**
  * Agente AI que usa Ollama pra decidir acoes no Cities: Skylines.
  * Recebe o estado da cidade e retorna acoes estruturadas.
+ * Mantém historico entre ticks para nao repetir acoes.
  */
 
 import { Ollama } from "ollama";
@@ -61,13 +62,18 @@ Acoes disponiveis:
 6. Mudar velocidade:
    {"tipo": "speed", "speed": 1|2|3}
 
-Estrategia basica:
-- Comece com energia (coal_power_plant ou wind_turbine) e agua (water_pump + water_drain)
-- Construa estradas pra conectar tudo
-- Zone residencial perto de servicos, comercial em avenidas, industrial separado
-- Fique de olho na demanda (R/C/I) - zone o que tiver mais demanda
-- Mantenha servicos publicos (policia, bombeiros, saude, educacao)
-- Nao gaste todo o dinheiro de uma vez - mantenha uma reserva
+REGRAS IMPORTANTES:
+- NAO repita acoes que ja fizeram efeito. Se ja tem energia suficiente, NAO construa mais usinas.
+- Se uma acao falhou antes (ex: prefab_not_found), NAO tente de novo com o mesmo nome.
+- Mantenha pelo menos $500.000 de reserva. Se o dinheiro esta baixo, NAO construa nada caro.
+- Siga esta ordem de prioridade pra cidade nova:
+  1. UMA usina de energia (coal_power_plant)
+  2. Agua (water_pump + water_drain)
+  3. Estradas conectando tudo
+  4. Zonas residenciais (a demanda R=100 pede moradores)
+  5. Servicos publicos quando populacao crescer
+- Se a producao de energia ja e maior que o consumo, NAO construa mais usinas!
+- Varie suas acoes a cada turno. Faca coisas DIFERENTES do turno anterior.
 
 Voce esta numa live da Twitch, entao seja divertido e explique suas decisoes de forma interessante!`;
 
@@ -81,6 +87,10 @@ export interface AgentResult {
   acoes: AgentAction[];
   resultados: Array<{ acao: AgentAction; resultado: unknown }>;
 }
+
+// Historico dos ultimos ticks para contexto
+const history: Array<{ role: "user" | "assistant"; content: string }> = [];
+const MAX_HISTORY = 6; // Ultimos 3 ticks (user + assistant)
 
 function parseResponse(content: string): {
   pensamento: string;
@@ -150,12 +160,12 @@ async function executeAction(action: AgentAction): Promise<unknown> {
 }
 
 export async function think(stats: CityStats): Promise<AgentResult> {
+  const userMsg = `Estado atual da cidade:\n${JSON.stringify(stats, null, 2)}\n\nDecida suas proximas acoes. Lembre do historico acima e NAO repita acoes desnecessarias. Responda em JSON.`;
+
   const messages = [
     { role: "system" as const, content: SYSTEM_PROMPT },
-    {
-      role: "user" as const,
-      content: `Estado atual da cidade:\n${JSON.stringify(stats, null, 2)}\n\nDecida suas proximas acoes. Responda em JSON.`,
-    },
+    ...history,
+    { role: "user" as const, content: userMsg },
   ];
 
   const response = await getOllama().chat({
@@ -163,7 +173,7 @@ export async function think(stats: CityStats): Promise<AgentResult> {
     messages,
     format: "json",
     options: {
-      num_predict: 512, // Limita resposta pra nao estourar memoria
+      num_predict: 512,
     },
   });
 
@@ -180,6 +190,28 @@ export async function think(stats: CityStats): Promise<AgentResult> {
       resultados.push({ acao, resultado: { error: erro } });
       console.log(`  ✗ ${acao.tipo}: ${erro}`);
     }
+  }
+
+  // Salva no historico para o proximo tick
+  history.push({ role: "user", content: userMsg });
+
+  // Resumo compacto dos resultados para o historico
+  const resumo = resultados.map(r => {
+    const status = (r.resultado as Record<string, unknown>)?.error ? "FALHOU" : "OK";
+    return `${r.acao.tipo}: ${status}`;
+  }).join(", ");
+
+  history.push({
+    role: "assistant",
+    content: JSON.stringify({
+      pensamento: parsed.pensamento,
+      acoes_executadas: resumo,
+    }),
+  });
+
+  // Mantem historico limitado
+  while (history.length > MAX_HISTORY) {
+    history.shift();
   }
 
   return {

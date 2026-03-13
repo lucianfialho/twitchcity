@@ -13,7 +13,7 @@ import { getStats, ping, setSpeed } from "./cities-client";
 import { think } from "./agent";
 
 // Load .env.local
-import { readFileSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
 import { resolve } from "path";
 
 try {
@@ -32,7 +32,20 @@ try {
   // No .env.local, use defaults
 }
 
-const TICK_INTERVAL = 15_000; // 15 segundos entre decisoes
+const TICK_INTERVAL = 8_000; // 8 segundos entre decisoes
+
+// Arquivo que o OBS le como Text Source para mostrar no stream
+const OVERLAY_PATH = resolve(process.cwd(), "overlay.txt");
+
+function updateOverlay(pensamento: string, stats?: { population: number; money: number; happiness: number }) {
+  const lines: string[] = [];
+  if (stats) {
+    lines.push(`Pop: ${stats.population} | $${stats.money.toLocaleString()} | ${stats.happiness}% feliz`);
+  }
+  lines.push("");
+  lines.push(`Onoma: ${pensamento}`);
+  writeFileSync(OVERLAY_PATH, lines.join("\n"), "utf-8");
+}
 
 async function waitForConnection() {
   const bridgeUrl = process.env.CITIES_BRIDGE_URL || "http://localhost:8080";
@@ -95,6 +108,13 @@ async function gameLoop() {
       // 3. Mostra pensamento
       console.log(`\n💬 "${result.pensamento}"`);
       console.log(`\n🎯 ${result.acoes.length} acao(oes) executada(s)`);
+
+      // 4. Atualiza overlay pro OBS
+      updateOverlay(result.pensamento, {
+        population: stats.population,
+        money: stats.money,
+        happiness: stats.happiness,
+      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error(`\n❌ Erro: ${msg}`);
