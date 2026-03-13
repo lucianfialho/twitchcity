@@ -236,7 +236,7 @@ namespace CitySkylinesBridge
         private string HandleZone(string body)
         {
             var data = SimpleJson.Parse(body);
-            Debug.Log($"[TwitchCity] Zone request: {body} -> parsed keys: {string.Join(", ", data.Keys)}");
+            Debug.Log($"[TwitchCity] Zone request: {body} -> parsed keys: {string.Join(", ", new List<string>(data.Keys).ToArray())}");
             string zoneType = "residential";
             if (data.ContainsKey("zone_type")) zoneType = data["zone_type"];
             else if (data.ContainsKey("type")) zoneType = data["type"];
@@ -286,7 +286,7 @@ namespace CitySkylinesBridge
         private string HandleBuild(string body)
         {
             var data = SimpleJson.Parse(body);
-            Debug.Log($"[TwitchCity] Build request: {body} -> parsed keys: {string.Join(", ", data.Keys)}");
+            Debug.Log($"[TwitchCity] Build request: {body} -> parsed keys: {string.Join(", ", new List<string>(data.Keys).ToArray())}");
             string buildType = "road";
             if (data.ContainsKey("build_type")) buildType = data["build_type"];
             else if (data.ContainsKey("type")) buildType = data["type"];
