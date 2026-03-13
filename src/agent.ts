@@ -154,6 +154,9 @@ export async function think(stats: CityStats): Promise<AgentResult> {
     model: MODEL,
     messages,
     format: "json",
+    options: {
+      num_predict: 512, // Limita resposta pra nao estourar memoria
+    },
   });
 
   const parsed = parseResponse(response.message.content || "");
