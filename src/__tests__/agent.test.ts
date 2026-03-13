@@ -24,10 +24,13 @@ vi.mock("ollama", () => ({
 
 vi.mock("../cities-client", () => ({
   getStats: (...args: unknown[]) => mockGetStats(...args),
+  getMapInfo: () => Promise.resolve({ roads: [], waterPoints: [], shore: [], buildings: [] }),
   zone: (...args: unknown[]) => mockZone(...args),
   build: (...args: unknown[]) => mockBuild(...args),
   place: (...args: unknown[]) => mockPlace(...args),
   setSpeed: (...args: unknown[]) => mockSetSpeed(...args),
+  setBudget: () => Promise.resolve({ success: true }),
+  connectPower: () => Promise.resolve({ success: true }),
 }));
 
 import { think, type AgentResult } from "../agent";
@@ -40,6 +43,12 @@ const fakeStats: CityStats = {
   happiness: 70,
   electricity: { production: 100, consumption: 80 },
   water: { production: 50, consumption: 40 },
+  sewage: { capacity: 0, accumulation: 0 },
+  garbage: { amount: 0, capacity: 0 },
+  crime: { criminals: 0, capacity: 0 },
+  education: { elementary: 0, highSchool: 0, university: 0 },
+  unemployment: 0,
+  landValue: 0,
   demand: { residential: 60, commercial: 30, industrial: 20 },
 };
 
@@ -70,10 +79,10 @@ describe("agent", () => {
     expect(result.acoes).toHaveLength(1);
     expect(mockZone).toHaveBeenCalledWith({
       type: "residential",
+      segment: undefined,
       x: 100,
       z: 100,
-      width: 4,
-      depth: 4,
+      radius: undefined,
     });
   });
 

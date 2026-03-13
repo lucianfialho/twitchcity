@@ -35,6 +35,12 @@ export interface CityStats {
   happiness: number;
   electricity: { production: number; consumption: number };
   water: { production: number; consumption: number };
+  sewage: { capacity: number; accumulation: number };
+  garbage: { amount: number; capacity: number };
+  crime: { criminals: number; capacity: number };
+  education: { elementary: number; highSchool: number; university: number };
+  unemployment: number;
+  landValue: number;
   demand: { residential: number; commercial: number; industrial: number };
 }
 
@@ -54,11 +60,19 @@ export async function getZones(): Promise<{
 // --- Actions ---
 
 export interface ZoneAction {
-  type: "residential" | "commercial" | "industrial" | "office";
-  x: number;
-  z: number;
-  width?: number;
-  depth?: number;
+  type:
+    | "residential"
+    | "residential_low"
+    | "residential_high"
+    | "commercial"
+    | "commercial_low"
+    | "commercial_high"
+    | "industrial"
+    | "office";
+  segment?: number; // zone by segment ID (preferred)
+  x?: number; // zone by position
+  z?: number;
+  radius?: number;
 }
 
 export async function zone(action: ZoneAction) {
@@ -66,11 +80,12 @@ export async function zone(action: ZoneAction) {
 }
 
 export interface BuildAction {
-  type: string; // road, powerline, water_pipe, etc
+  type: string; // road, medium_road, large_road, oneway, highway, powerline, water_pipe
   startX: number;
   startZ: number;
   endX: number;
   endZ: number;
+  autoZone?: string; // "residential", "commercial", etc - auto-zones after building road
 }
 
 export async function build(action: BuildAction) {
@@ -78,29 +93,67 @@ export async function build(action: BuildAction) {
 }
 
 export interface PlaceAction {
-  prefab: string; // coal_power_plant, police_station, fire_station, etc
+  prefab: string; // coal_power_plant, water_pump, etc
   x: number;
   z: number;
+  angle?: number; // optional, auto-calculated for water buildings
 }
 
 export async function place(action: PlaceAction) {
   return request("POST", "/api/place", action as unknown as Record<string, unknown>);
 }
 
-export async function setBudget(service: string, percentage: number) {
-  return request("POST", "/api/budget", { service, percentage });
+export interface BudgetAction {
+  service: string; // electricity, water, garbage, healthcare, fire, police, education, transport, road, residential, commercial, industrial, office
+  budget?: number; // 50-150 (default 100)
+  taxRate?: number; // 0-29
+}
+
+export async function setBudget(action: BudgetAction) {
+  return request("POST", "/api/budget", action as unknown as Record<string, unknown>);
 }
 
 export async function setSpeed(speed: 1 | 2 | 3) {
   return request("POST", "/api/speed", { speed });
 }
 
+export interface ConnectPowerAction {
+  toX: number;
+  toZ: number;
+  fromX?: number; // optional, auto-finds nearest power plant
+  fromZ?: number;
+}
+
+export async function connectPower(action: ConnectPowerAction) {
+  return request("POST", "/api/connect-power", action as unknown as Record<string, unknown>);
+}
+
 // --- Utility ---
 
-export async function getMapInfo(): Promise<{
+export interface ShorePoint {
+  x: number;
+  z: number;
+  waterHeight: number;
+  dirX: number;
+  dirZ: number;
+}
+
+export interface MapBuilding {
+  id: number;
+  name: string;
+  service: string;
+  x: number;
+  z: number;
+}
+
+export interface MapInfo {
   roads: Array<{ id: number; x: number; z: number; name: string }>;
   waterPoints: Array<{ x: number; z: number; waterLevel: number; terrainHeight: number }>;
-}> {
+  shore: ShorePoint[];
+  buildings: MapBuilding[];
+}
+
+export async function getMapInfo(): Promise<MapInfo> {
   return request("GET", "/api/map");
 }
 

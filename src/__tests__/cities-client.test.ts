@@ -56,7 +56,7 @@ describe("cities-client", () => {
     });
 
     const { zone } = await import("../cities-client");
-    await zone({ type: "residential", x: 100, z: 200, width: 4, depth: 4 });
+    await zone({ type: "residential", x: 100, z: 200 });
 
     expect(mockFetch).toHaveBeenCalledWith(
       "http://10.0.0.5:8080/api/zone",
@@ -66,8 +66,6 @@ describe("cities-client", () => {
           type: "residential",
           x: 100,
           z: 200,
-          width: 4,
-          depth: 4,
         }),
       })
     );

@@ -98,6 +98,15 @@ async function gameLoop() {
         `⚡ Energia: ${stats.electricity.production}/${stats.electricity.consumption} | 💧 Agua: ${stats.water.production}/${stats.water.consumption}`
       );
       console.log(
+        `🚽 Esgoto: ${stats.sewage?.capacity || 0}/${stats.sewage?.accumulation || 0} | 🗑️ Lixo: ${stats.garbage?.amount || 0}/${stats.garbage?.capacity || 0}`
+      );
+      console.log(
+        `🚔 Crime: ${stats.crime?.criminals || 0}/${stats.crime?.capacity || 0} | 💼 Desemprego: ${stats.unemployment || 0}%`
+      );
+      console.log(
+        `🎓 Edu: E${stats.education?.elementary || 0}% H${stats.education?.highSchool || 0}% U${stats.education?.university || 0}%`
+      );
+      console.log(
         `📈 Demanda: R=${stats.demand.residential} C=${stats.demand.commercial} I=${stats.demand.industrial}`
       );
 
